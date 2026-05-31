@@ -428,9 +428,17 @@ def start_aip_node():
                 self.wfile.write(body)
             except: pass
 
-    server = HTTPServer(("localhost", 6002), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    print("  🔌 PayCheck-AI AIP Node running on port 6002")
+    # ── FIX: Allow port reuse so Streamlit reruns don't crash ──
+    class ReusableTCPServer(HTTPServer):
+        allow_reuse_address = True
+
+    try:
+        server = ReusableTCPServer(("0.0.0.0", 6002), Handler)  # 0.0.0.0 for cloud deploy
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        print("  🔌 PayCheck-AI AIP Node running on port 6002")
+    except OSError as e:
+        print(f"  ⚠️ AIP Node port 6002 already in use: {e}")
+        _mod._aip_running = False  # reset so next rerun tries again
 
 # ══════════════════════════════════════════════════════════════
 # HEARTBEAT — pings BankPortal every 30s
